@@ -72,11 +72,11 @@ function AlbumRow({ title, query, sort }) {
 
 function HomePage() {
   return (
-    <>
+    <div className="home-page">
       {SECTIONS.map((section) => (
         <AlbumRow key={section.title} title={section.title} query={section.query} sort={section.sort} />
       ))}
-    </>
+    </div>
   )
 }
 

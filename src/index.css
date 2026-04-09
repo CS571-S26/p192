@@ -2,10 +2,27 @@ body {
   margin: 0;
   background: #181818;
   color: #fff;
+  font-size: 16.5px;
+  line-height: 1.45;
 }
 
 .page-wide {
   padding: 0 1.5rem;
+}
+
+/* ~10% gutter on each side of the home feed */
+.home-page {
+  width: 80%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 576px) {
+  .home-page {
+    width: 90%;
+  }
 }
 
 .section-header {
@@ -17,7 +34,7 @@ body {
 }
 
 .section-header h2 {
-  font-size: 1.3rem;
+  font-size: 1.45rem;
   font-weight: 700;
   margin: 0;
   color: #fff;
@@ -70,7 +87,7 @@ body {
 
 .album-card .album-title {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   margin-top: 0.4rem;
   margin-bottom: 0;
   white-space: nowrap;
@@ -80,9 +97,15 @@ body {
 }
 
 .album-card .album-artist {
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   color: #a0a0a0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.wiki-extract {
+  line-height: 1.6;
+  white-space: pre-line;
+  font-size: 1rem;
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { Spinner, Alert, Button, Row, Col, ListGroup } from 'react-bootstrap'
 import { getAlbum } from '../../utils/spotify'
+import { getAlbumWikipediaSummary } from '../../utils/wikipedia'
 
 function AlbumDetails() {
   const { id } = useParams()
@@ -10,6 +11,8 @@ function AlbumDetails() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [inCrate, setInCrate] = useState(false)
+  const [wikiSummary, setWikiSummary] = useState(null)
+  const [wikiLoading, setWikiLoading] = useState(false)
 
   useEffect(() => {
     getAlbum(id)
@@ -21,6 +24,27 @@ function AlbumDetails() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!album) return
+    let cancelled = false
+    setWikiLoading(true)
+    setWikiSummary(null)
+    const artists = album.artists.map((a) => a.name)
+    getAlbumWikipediaSummary(album.name, artists)
+      .then((data) => {
+        if (!cancelled) setWikiSummary(data)
+      })
+      .catch(() => {
+        if (!cancelled) setWikiSummary(null)
+      })
+      .finally(() => {
+        if (!cancelled) setWikiLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [album])
 
   if (loading) return <Spinner animation="border" className="d-block mx-auto mt-5" />
   if (error) return <Alert variant="danger">{error}</Alert>
@@ -79,6 +103,42 @@ function AlbumDetails() {
             >
               {inCrate ? 'In My Crate' : 'Add to My Crate'}
             </Button>
+          </div>
+
+          <div className="wiki-section mt-4">
+            <h5 className="mb-2">About</h5>
+            {wikiLoading && (
+              <Spinner animation="border" size="sm" className="text-secondary" />
+            )}
+            {!wikiLoading && wikiSummary && (
+              <>
+                <p className="wiki-extract text-secondary mb-2">{wikiSummary.extract}</p>
+                <p className="wiki-attribution small text-muted mb-0">
+                  Summary from{' '}
+                  {wikiSummary.url ? (
+                    <a href={wikiSummary.url} target="_blank" rel="noreferrer">
+                      Wikipedia
+                    </a>
+                  ) : (
+                    'Wikipedia'
+                  )}
+                  {' '}
+                  (<a
+                    href="https://en.wikipedia.org/wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    CC BY-SA
+                  </a>
+                  ).
+                </p>
+              </>
+            )}
+            {!wikiLoading && !wikiSummary && (
+              <p className="text-muted small mb-0">
+                No matching Wikipedia article was found for this album.
+              </p>
+            )}
           </div>
 
           <h5 className="mt-3">Track List</h5>
