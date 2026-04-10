@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Spinner, Alert } from 'react-bootstrap'
 import { searchAlbums } from '../../utils/spotify'
@@ -13,34 +13,77 @@ const SECTIONS = [
   { title: "70's", query: 'year:1970-1979', sort: 'popularity' },
 ]
 
-function AlbumRow({ title, query, sort }) {
+function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = false }) {
   const [albums, setAlbums] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [visible, setVisible] = useState(!deferUntilVisible)
+  const sentinelRef = useRef(null)
   const navigate = useNavigate()
 
   useEffect(() => {
-    Promise.all([
-      searchAlbums(query, 10, 0),
-      searchAlbums(query, 10, 10),
-      searchAlbums(query, 10, 20),
-      searchAlbums(query, 10, 30),
-    ])
-      .then((pages) => {
-        const combined = pages.flatMap((p) => p.items || [])
-        let filtered = combined
-          .filter((album) => album.album_type !== 'compilation')
-          .filter((album) => album.total_tracks >= 6 && album.total_tracks <= 35)
-          .filter((a, i, arr) => arr.findIndex((b) => b.id === a.id) === i)
-        if (sort === 'popularity') {
-          filtered.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
-        }
-        filtered = filtered.slice(0, 12)
-        setAlbums(filtered)
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [query])
+    if (visible || !deferUntilVisible) return
+    const el = sentinelRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setVisible(true)
+      },
+      { rootMargin: '400px 0px', threshold: 0 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [visible, deferUntilVisible])
+
+  useEffect(() => {
+    if (!visible) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    const timer = setTimeout(() => {
+      Promise.all([
+        searchAlbums(query, 10, 0),
+        searchAlbums(query, 10, 10),
+        searchAlbums(query, 10, 20),
+        searchAlbums(query, 10, 30),
+      ])
+        .then((pages) => {
+          if (cancelled) return
+          const combined = pages.flatMap((p) => p.items || [])
+          let filtered = combined
+            .filter((album) => album.album_type !== 'compilation')
+            .filter((album) => album.total_tracks >= 6 && album.total_tracks <= 35)
+            .filter((a, i, arr) => arr.findIndex((b) => b.id === a.id) === i)
+          if (sort === 'popularity') {
+            filtered.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+          }
+          filtered = filtered.slice(0, 12)
+          setAlbums(filtered)
+        })
+        .catch((err) => {
+          if (!cancelled) setError(err.message)
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+    }, loadDelayMs)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [query, sort, loadDelayMs, visible])
+
+  if (!visible) {
+    return (
+      <div
+        ref={sentinelRef}
+        className="home-section-sentinel"
+        aria-hidden
+      />
+    )
+  }
 
   if (loading) return <Spinner animation="border" size="sm" className="d-block mx-auto my-3" />
   if (error) return <Alert variant="danger" className="py-1 px-2 mb-2">{error}</Alert>
@@ -73,8 +116,15 @@ function AlbumRow({ title, query, sort }) {
 function HomePage() {
   return (
     <div className="home-page">
-      {SECTIONS.map((section) => (
-        <AlbumRow key={section.title} title={section.title} query={section.query} sort={section.sort} />
+      {SECTIONS.map((section, index) => (
+        <AlbumRow
+          key={section.title}
+          title={section.title}
+          query={section.query}
+          sort={section.sort}
+          loadDelayMs={index * 120}
+          deferUntilVisible={index >= 2}
+        />
       ))}
     </div>
   )

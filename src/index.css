@@ -19,6 +19,11 @@ body {
   box-sizing: border-box;
 }
 
+/* Placeholder for lazy-loaded rows so scroll / intersection works */
+.home-section-sentinel {
+  min-height: 200px;
+}
+
 @media (max-width: 576px) {
   .home-page {
     width: 90%;
