@@ -42,6 +42,41 @@ async function wikiPageSummary(title) {
 }
 
 /**
+ * Best-effort artist blurb.
+ * @param {string} artistName
+ * @param {string[]} genres optional; used as search hint
+ */
+export async function getArtistWikipediaSummary(artistName, genres = []) {
+  if (!artistName) return null
+  const genreHint = genres[0] ? ` ${genres[0]}` : ''
+  const queries = [
+    `${artistName} musician`,
+    `${artistName} band`,
+    `${artistName} singer`,
+    `${artistName} rapper`,
+    `${artistName}${genreHint}`,
+    artistName,
+  ]
+
+  for (const srsearch of queries) {
+    let titles
+    try {
+      titles = await wikiSearch(srsearch, 8)
+    } catch {
+      continue
+    }
+    if (!titles.length) continue
+
+    const slice = titles.slice(0, 5)
+    const results = await Promise.all(slice.map((t) => wikiPageSummary(t)))
+    const best = results.find((r) => r && r.extract.length > 80)
+    if (best) return best
+  }
+
+  return null
+}
+
+/**
  * Best-effort album blurb: tries several search queries, then first good summary.
  * @param {string} albumName
  * @param {string[]} artistNames primary artist first

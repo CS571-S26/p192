@@ -4,6 +4,7 @@ import CrateDiggerLayout from './CrateDiggerLayout'
 import HomePage from '../pages/HomePage'
 import SearchResults from '../pages/SearchResults'
 import AlbumDetails from '../pages/AlbumDetails'
+import ArtistDetails from '../pages/ArtistDetails'
 import MyCrate from '../pages/MyCrate'
 import Randomizer from '../pages/Randomizer'
 
@@ -15,6 +16,7 @@ function CrateDiggerApp() {
           <Route index element={<HomePage />} />
           <Route path="search" element={<SearchResults />} />
           <Route path="album/:id" element={<AlbumDetails />} />
+          <Route path="artist/:id" element={<ArtistDetails />} />
           <Route path="my-crate" element={<MyCrate />} />
           <Route path="randomizer" element={<Randomizer />} />
         </Route>

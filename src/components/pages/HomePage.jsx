@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Spinner, Alert } from 'react-bootstrap'
-import { searchAlbums } from '../../utils/spotify'
+import { searchAlbums, prefetchAlbum } from '../../utils/spotify'
+import StarRating from '../StarRating'
+import { albumToCrateMeta } from '../../utils/crate'
 
 const SECTIONS = [
-  { title: 'New Releases', query: 'year:2026', sort: 'popularity' },
-  { title: 'Popular', query: 'year:2020-2026', sort: 'popularity' },
+  { title: 'New & Popular', query: 'year:2024-2026', sort: 'popularity', rowLimit: 18 },
+  { title: "2020's", query: 'year:2020-2023', sort: 'popularity' },
   { title: "2010's", query: 'year:2010-2019', sort: 'popularity' },
   { title: "2000's", query: 'year:2000-2009', sort: 'popularity' },
   { title: "90's", query: 'year:1990-1999', sort: 'popularity' },
@@ -13,7 +15,7 @@ const SECTIONS = [
   { title: "70's", query: 'year:1970-1979', sort: 'popularity' },
 ]
 
-function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = false }) {
+function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = false, rowLimit = 12 }) {
   const [albums, setAlbums] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -58,7 +60,7 @@ function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = fal
           if (sort === 'popularity') {
             filtered.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
           }
-          filtered = filtered.slice(0, 12)
+          filtered = filtered.slice(0, rowLimit)
           setAlbums(filtered)
         })
         .catch((err) => {
@@ -73,7 +75,7 @@ function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = fal
       cancelled = true
       clearTimeout(timer)
     }
-  }, [query, sort, loadDelayMs, visible])
+  }, [query, sort, loadDelayMs, visible, rowLimit])
 
   if (!visible) {
     return (
@@ -96,16 +98,25 @@ function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = fal
       </div>
       <div className="album-grid">
         {albums.map((album) => (
-          <div
-            key={album.id}
-            className="album-card"
-            onClick={() => navigate(`/album/${album.id}`)}
-          >
-            <img src={album.images[0]?.url} alt={album.name} />
-            <p className="album-title">{album.name}</p>
-            <p className="album-artist">
-              {album.artists.map((a) => a.name).join(', ')}
-            </p>
+          <div key={album.id} className="album-card">
+            <div
+              className="album-card-main"
+              onMouseEnter={() => prefetchAlbum(album.id)}
+              onClick={() => navigate(`/album/${album.id}`)}
+            >
+              <img src={album.images[0]?.url} alt={album.name} />
+              <p className="album-title">{album.name}</p>
+              <p className="album-artist">
+                {album.artists.map((a) => a.name).join(', ')}
+              </p>
+            </div>
+            <div className="album-card-meta">
+              <StarRating
+                albumId={album.id}
+                size="sm"
+                albumMeta={albumToCrateMeta(album)}
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -122,6 +133,7 @@ function HomePage() {
           title={section.title}
           query={section.query}
           sort={section.sort}
+          rowLimit={section.rowLimit}
           loadDelayMs={index * 120}
           deferUntilVisible={index >= 2}
         />
