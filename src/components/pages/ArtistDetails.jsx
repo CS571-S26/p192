@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router'
 import { Spinner, Alert } from 'react-bootstrap'
 import { getArtist, getArtistAlbums, prefetchAlbum } from '../../utils/spotify'
 import { getArtistWikipediaSummary } from '../../utils/wikipedia'
+import AddToCrateButton from '../AddToCrateButton'
+import { albumToCrateMeta } from '../../utils/crate'
 
 function formatFollowers(n) {
   if (!Number.isFinite(n)) return null
@@ -189,6 +191,14 @@ function ArtistDetails() {
                       onClick={() => navigate(`/album/${album.id}`)}
                     >
                       <img src={album.images?.[0]?.url} alt={album.name} />
+                      <AddToCrateButton
+                        albumMeta={albumToCrateMeta({
+                          ...album,
+                          artists: album.artists?.length
+                            ? album.artists
+                            : [{ name: artist.name }],
+                        })}
+                      />
                       <p className="album-title">{album.name}</p>
                       <p className="album-artist">
                         {album.release_date?.slice(0, 4) || ''}

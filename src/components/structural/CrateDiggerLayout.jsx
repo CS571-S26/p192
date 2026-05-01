@@ -43,7 +43,7 @@ function CrateDiggerLayout() {
     <>
       <Navbar bg="dark" variant="dark" expand="lg" className="px-3">
         <Navbar.Brand as={Link} to="/" className="navbar-brand-blonde">
-          Crate Digger
+          Crate Dig
         </Navbar.Brand>
         <Navbar.Toggle />
         <Navbar.Collapse>

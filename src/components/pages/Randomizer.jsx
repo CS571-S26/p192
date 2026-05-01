@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button, Spinner, Alert } from 'react-bootstrap'
 import { getRandomAlbum, getRandomAlbums, prefetchAlbum } from '../../utils/spotify'
 import StarRating from '../StarRating'
+import AddToCrateButton from '../AddToCrateButton'
 import { albumToCrateMeta } from '../../utils/crate'
 
 const PAGE_SIZE = 18
@@ -13,29 +14,34 @@ function Randomizer() {
   const [digging, setDigging] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  // Token so we ignore results from any superseded load (StrictMode double-mount,
+  // rapid Shuffle clicks, navigation away mid-flight, etc.)
+  const loadIdRef = useRef(0)
 
   const loadAlbums = useCallback(() => {
-    let cancelled = false
+    const myId = ++loadIdRef.current
     setLoading(true)
     setError(null)
     getRandomAlbums(PAGE_SIZE)
       .then((data) => {
-        if (!cancelled) setAlbums(data)
+        if (loadIdRef.current !== myId) return
+        setAlbums(data)
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message)
+        if (loadIdRef.current !== myId) return
+        setError(err.message)
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (loadIdRef.current !== myId) return
+        setLoading(false)
       })
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   useEffect(() => {
-    const cleanup = loadAlbums()
-    return cleanup
+    loadAlbums()
+    return () => {
+      loadIdRef.current++
+    }
   }, [loadAlbums])
 
   const handleDig = async () => {
@@ -108,6 +114,7 @@ function Randomizer() {
                   onClick={() => navigate(`/album/${album.id}`)}
                 >
                   <img src={album.images[0]?.url} alt={album.name} />
+                  <AddToCrateButton albumMeta={albumToCrateMeta(album)} />
                   <p className="album-title">{album.name}</p>
                   <p className="album-artist">
                     {album.artists.map((a) => a.name).join(', ')}

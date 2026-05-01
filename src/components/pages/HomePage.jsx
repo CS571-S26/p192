@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { Spinner, Alert } from 'react-bootstrap'
 import { searchAlbums, prefetchAlbum } from '../../utils/spotify'
 import StarRating from '../StarRating'
+import AddToCrateButton from '../AddToCrateButton'
 import { albumToCrateMeta } from '../../utils/crate'
 
 const SECTIONS = [
@@ -15,7 +16,14 @@ const SECTIONS = [
   { title: "70's", query: 'year:1970-1979', sort: 'popularity' },
 ]
 
-function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = false, rowLimit = 12 }) {
+function AlbumRow({
+  title,
+  query,
+  sort,
+  loadDelayMs = 0,
+  deferUntilVisible = false,
+  rowLimit = 12,
+}) {
   const [albums, setAlbums] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -74,6 +82,8 @@ function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = fal
     return () => {
       cancelled = true
       clearTimeout(timer)
+      // If the timeout never fired, loading was set true but no request runs — avoid a stuck spinner.
+      setLoading(false)
     }
   }, [query, sort, loadDelayMs, visible, rowLimit])
 
@@ -105,6 +115,7 @@ function AlbumRow({ title, query, sort, loadDelayMs = 0, deferUntilVisible = fal
               onClick={() => navigate(`/album/${album.id}`)}
             >
               <img src={album.images[0]?.url} alt={album.name} />
+              <AddToCrateButton albumMeta={albumToCrateMeta(album)} />
               <p className="album-title">{album.name}</p>
               <p className="album-artist">
                 {album.artists.map((a) => a.name).join(', ')}

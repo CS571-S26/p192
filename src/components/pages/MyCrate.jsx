@@ -5,6 +5,7 @@ import { prefetchAlbum } from '../../utils/spotify'
 import { useAlbumAnnotations } from '../../hooks/useAlbumAnnotations'
 import StarRating from '../StarRating'
 import ListenStatusSelect from '../ListenStatusSelect'
+import AddToCrateButton from '../AddToCrateButton'
 import { getCrate, getCrateVersion, subscribeCrate } from '../../utils/crate'
 
 const FILTERS = [
@@ -73,6 +74,7 @@ function MyCrate() {
                 onClick={() => navigate(`/album/${album.id}`)}
               >
                 <img src={album.image} alt={album.name} />
+                <AddToCrateButton albumMeta={album} />
                 <p className="album-title">{album.name}</p>
                 <p className="album-artist">{album.artist}</p>
               </div>

@@ -118,8 +118,17 @@ let spotifyQueue = Promise.resolve();
 /**
  * One Spotify API GET with 429 retries. Retries stay inside this call — they do not re-enter the queue,
  * so we avoid a thundering herd of parallel retries.
+ *
+ * Spotify sends `Retry-After` (usually seconds). Docs:
+ * https://developer.spotify.com/documentation/web-api/concepts/rate-limits
+ * We cap per-wait at 45s so the tab doesn't freeze for hours when the header is huge — but see below.
+ *
+ * `/artists/{id}/albums` sometimes returns a very large Retry-After while other endpoints are fine
+ * (community reports). We fail fast so `getArtistAlbums` can use its search fallback immediately.
  */
 async function spotifyRequestOnce(endpoint) {
+  const isArtistDiscographyEndpoint = /^\/artists\/[^/?]+\/albums\b/.test(endpoint);
+
   for (let attempt = 0; attempt <= SPOTIFY_429_MAX_RETRIES; attempt++) {
     const token = await getAccessToken();
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -128,9 +137,23 @@ async function spotifyRequestOnce(endpoint) {
 
     if (response.status === 429 && attempt < SPOTIFY_429_MAX_RETRIES) {
       const retryAfter = response.headers.get('Retry-After');
-      const fromHeader = retryAfter ? parseInt(retryAfter, 10) * 1000 : NaN;
+      const retrySec = retryAfter ? parseInt(retryAfter, 10) : NaN;
+
+      if (
+        isArtistDiscographyEndpoint &&
+        Number.isFinite(retrySec) &&
+        retrySec > 120
+      ) {
+        console.warn(
+          `[Spotify] ${endpoint}: Retry-After=${retrySec}s on artist albums — failing fast so search fallback can run.`
+        );
+        throw new Error('Spotify API error: 429');
+      }
+
+      const fromHeader = Number.isFinite(retrySec) ? retrySec * 1000 : NaN;
       let waitMs = Number.isFinite(fromHeader) ? fromHeader : 2000 * 2 ** attempt;
       if (!Number.isFinite(waitMs) || waitMs < 800) waitMs = 2000;
+      /* Don't block the UI for multi-hour waits; Spotify may extend bans if we ignore huge delays entirely */
       if (waitMs > 45_000) waitMs = 45_000;
       await new Promise((r) => setTimeout(r, waitMs));
       continue;
@@ -139,6 +162,15 @@ async function spotifyRequestOnce(endpoint) {
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       console.error('[Spotify] API error:', response.status, endpoint, text);
+      if (response.status === 429) {
+        const ra = response.headers.get('Retry-After');
+        const s = ra ? parseInt(ra, 10) : NaN;
+        const hint =
+          Number.isFinite(s) && s > 0
+            ? ` (Retry-After: ${s}s)`
+            : '';
+        throw new Error(`Spotify API error: 429${hint}`);
+      }
       throw new Error(`Spotify API error: ${response.status}`);
     }
 
@@ -178,6 +210,24 @@ export async function searchAlbums(query, limit = 10, offset = 0) {
   const data = await spotifyFetch(endpoint);
   writeSearchCache(endpoint, data.albums);
   return data.albums;
+}
+
+/** Artist search; uses the same queue + cache as `searchAlbums`. */
+export async function searchArtists(query, limit = 8) {
+  const safeLimit = Math.max(1, Math.min(20, Math.floor(limit)));
+  const params = new URLSearchParams({
+    q: query,
+    type: 'artist',
+    limit: String(safeLimit),
+    market: 'US',
+  });
+  const endpoint = `/search?${params}`;
+  const cached = readSearchCache(endpoint);
+  if (cached) return cached;
+
+  const data = await spotifyFetch(endpoint);
+  writeSearchCache(endpoint, data.artists);
+  return data.artists;
 }
 
 export async function getAlbum(id) {
